@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>BURGERR ULTRA</title>
+
+<style>
+body {
+    margin:0;
+    background:#010409;
+    color:#00cfff;
+    font-family: monospace;
+    overflow:hidden;
+}
+
+:root {
+    --main:#00cfff;
+    --strong:#0099ff;
+}
+
+canvas {
+    position:fixed;
+    top:0;
+    left:0;
+}
+
+.lang {
+    position:absolute;
+    top:10px;
+    right:10px;
+    background:black;
+    color:var(--main);
+    border:1px solid var(--main);
+    padding:5px 10px;
+    cursor:pointer;
+}
+
+.container {
+    position:absolute;
+    top:50%;
+    left:50%;
+    transform:translate(-50%,-50%);
+    width:520px;
+    background:rgba(0,0,0,0.92);
+    border:1px solid var(--main);
+    box-shadow:
+        0 0 10px var(--main),
+        0 0 40px var(--strong),
+        inset 0 0 20px rgba(0,200,255,0.1);
+    padding:20px;
+}
+
+.logo {
+    white-space:pre;
+    font-size:11px;
+    text-shadow:
+        0 0 5px var(--main),
+        0 0 15px var(--strong);
+    animation:flicker 2s infinite;
+}
+
+@keyframes flicker {
+    50% {opacity:0.8;}
+}
+
+input {
+    width:100%;
+    padding:10px;
+    background:black;
+    border:1px solid var(--main);
+    color:var(--main);
+}
+
+input:focus {
+    box-shadow:0 0 10px var(--main);
+}
+
+button {
+    margin-top:10px;
+    padding:10px;
+    width:48%;
+    background:linear-gradient(90deg,#00cfff,#0099ff);
+    border:none;
+    color:black;
+    font-weight:bold;
+    cursor:pointer;
+}
+
+button:hover {
+    box-shadow:0 0 15px var(--main);
+}
+
+#terminal {
+    margin-top:15px;
+    height:220px;
+    overflow:auto;
+    background:black;
+    padding:10px;
+    border:1px solid var(--main);
+}
+
+.footer {
+    position:absolute;
+    bottom:10px;
+    left:10px;
+    font-size:12px;
+}
+
+.cursor {
+    display:inline-block;
+    width:8px;
+    background:var(--main);
+    animation:blink 1s infinite;
+}
+@keyframes blink {
+    50% {opacity:0;}
+}
+</style>
+</head>
+
+<body>
+
+<canvas id="matrix"></canvas>
+
+<button class="lang" onclick="toggleLang()">EN / FA</button>
+
+<div class="container">
+
+<div id="logo" class="logo"></div>
+
+<input id="url">
+
+<button onclick="run()" id="scanBtn"></button>
+<button onclick="showHelp()" id="helpBtn"></button>
+
+<div id="terminal"></div>
+
+</div>
+
+<div class="footer" id="footer"></div>
+
+<script>
+
+function beep(){
+    let ctx=new AudioContext();
+    let osc=ctx.createOscillator();
+    osc.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime+0.05);
+}
+
+let lang="EN";
+
+const TEXT={
+EN:{
+logo:`██████╗ ██╗   ██╗██████╗  ██████╗ ███████╗██████╗
+██╔══██╗██║   ██║██╔══██╗██╔════╝ ██╔════╝██╔══██╗
+██████╔╝██║   ██║██████╔╝██║  ███╗█████╗  ██████╔╝
+██╔══██╗██║   ██║██╔══██╗██║   ██║██╔══╝  ██╔══██╗
+██████╔╝╚██████╔╝██║  ██║╚██████╔╝███████╗██║  ██║
+╚═════╝  ╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝  ╚═╝
+
+>>> BURGERR DARK SCANNER <<<`,
+scan:"SCAN",
+help:"HELP",
+placeholder:"Enter URL...",
+footer:"Developers: Parsa Shahsavari & Mohammad Taha Khalili",
+steps:[
+"[+] Initializing...",
+"[+] Connecting...",
+"[+] Resolving DNS...",
+"[+] Checking domain...",
+"[+] Analyzing..."
+],
+done:"SCAN COMPLETE",
+helpText:"Scan links and detect trusted domains\nSAFE = trusted\nSUSPICIOUS = unknown"
+},
+
+FA:{
+logo:"ابزار چک کننده لینک",
+scan:"اسکن",
+help:"راهنما",
+placeholder:"لینک را وارد کنید...",
+footer:"سازندگان: پارسا شهسواری و محمد طاها خلیلی",
+steps:[
+"[+] شروع...",
+"[+] اتصال...",
+"[+] دریافت DNS...",
+"[+] بررسی دامنه...",
+"[+] تحلیل..."
+],
+done:"اسکن کامل شد",
+helpText:"این ابزار لینک‌ها را بررسی می‌کند\nSAFE = امن\nSUSPICIOUS = مشکوک"
+}
+};
+
+const VALID_DOMAINS=[
+"shaparak.ir",
+"bmi.ir",
+"bankmellat.ir",
+"cbi.ir",
+"postbank.ir"
+];
+
+function updateUI(){
+    logo.innerText=TEXT[lang].logo;
+    scanBtn.innerText=TEXT[lang].scan;
+    helpBtn.innerText=TEXT[lang].help;
+    url.placeholder=TEXT[lang].placeholder;
+    footer.innerText=TEXT[lang].footer;
+}
+function toggleLang(){lang=lang==="EN"?"FA":"EN";updateUI();}
+
+function print(text){
+    terminal.innerHTML+=text+"\n";
+    terminal.scrollTop=terminal.scrollHeight;
+}
+
+function normalize(url){
+    if(!url.startsWith("http")) return "http://"+url;
+    return url;
+}
+
+function extractDomain(url){
+    try{return new URL(url).hostname.replace("www.","");}
+    catch{return null;}
+}
+
+async function getIP(domain){
+    try{
+        let res=await fetch(`https://dns.google/resolve?name=${domain}`);
+        let data=await res.json();
+        return data.Answer?data.Answer[0].data:"UNKNOWN";
+    }catch{return "UNKNOWN";}
+}
+
+async function scan(url){
+    let domain=extractDomain(url);
+    if(!domain) return ["INVALID","UNKNOWN","ERROR"];
+
+    let ip=await getIP(domain);
+
+    let safe=VALID_DOMAINS.some(v=>domain===v||domain.endsWith("."+v));
+
+    return [domain,ip,safe?"SAFE":"SUSPICIOUS"];
+}
+
+async function run(){
+
+    terminal.innerHTML="";
+    let input=url.value;
+
+    if(!input){
+        print("[ERROR]");
+        return;
+    }
+
+    for(let step of TEXT[lang].steps){
+        print(step);
+        beep();
+        await new Promise(r=>setTimeout(r,500));
+    }
+
+    let [domain,ip,status]=await scan(normalize(input));
+
+    print("\n"+TEXT[lang].done+"\n");
+
+    print("DOMAIN: "+domain);
+    print("IP: "+ip);
+    print("STATUS: "+status);
+    print("RISK: "+(status==="SAFE"?"LOW":"MEDIUM"));
+
+    beep();
+}
+
+function showHelp(){
+    terminal.innerHTML="";
+    print(TEXT[lang].helpText);
+}
+
+const canvas=document.getElementById("matrix");
+const ctx=canvas.getContext("2d");
+
+canvas.width=window.innerWidth;
+canvas.height=window.innerHeight;
+
+const letters="01";
+const fontSize=14;
+const columns=canvas.width/fontSize;
+const drops=Array(Math.floor(columns)).fill(1);
+
+function draw(){
+    ctx.fillStyle="rgba(0,0,0,0.05)";
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+
+    ctx.fillStyle="#00cfff";
+    ctx.font=fontSize+"px monospace";
+
+    for(let i=0;i<drops.length;i++){
+        let text=letters[Math.floor(Math.random()*letters.length)];
+        ctx.fillText(text,i*fontSize,drops[i]*fontSize);
+
+        if(drops[i]*fontSize>canvas.height && Math.random()>0.95){
+            drops[i]=0;
+        }
+
+        drops[i]++;
+    }
+}
+
+setInterval(draw,30);
+
+updateUI();
+
+</script>
+
+</body>
+</html>
