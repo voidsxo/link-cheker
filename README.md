@@ -90,7 +90,7 @@ burgerr.exe
 ### 🐧 Linux
 
 1. Download:
-   👉 **[Download for Linux](PUT-YOUR-LINK-HERE)**
+   👉 git clone https://github.com/voidsxo/link-cheker.git
 
 2. Make executable:
 
@@ -117,8 +117,8 @@ pkg install python
 2. Clone repository:
 
 ```bash
-git clone YOUR-GITHUB-LINK
-cd YOUR-REPO
+git clone https://github.com/voidsxo/link-cheker.git
+cd tools
 ```
 
 3. Run:
